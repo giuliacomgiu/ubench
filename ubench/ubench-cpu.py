@@ -19,23 +19,13 @@ from time import perf_counter as pc
 from threading import Thread
 
 operation_count = 0
-
-def runasthread(func):
-    print('Running as thread')
-    def wrapper(*args, **kwargs):
-        thread = Thread(target=func, args=args, kwargs=kwargs)
-        thread.start()
-        return thread
-    return wrapper
-@runasthread
+keep_running = False
 
 def calculate_pi(digits):
     """
     Calculate pi to a specified number of digits
     """
-    # print('Calculating pi', digits)
     pi_value = mp.pi(dps = digits)
-@runasthread
 
 def get_system_usage():
     """
@@ -45,26 +35,17 @@ def get_system_usage():
     ram_usage = psutil.virtual_memory().percent  # RAM usage in percentage
     return cpu_usage, ram_usage
 
-def thread_calculate_pi(digits, thread_count):
-    global operation_count
-    for count in range(thread_count):
-        # Using `args` to pass positional arguments and `kwargs` for keyword arguments
-        # t = threading.Thread(target=crawl, args=(link,), kwargs={"delay 2})
-        # threads.append(t)
+def worker_thread(digits):
+    """
+    Persistent worker thread that calculates pi continuously
+    """
+    global operation_count, keep_running
+    while keep_running:
         calculate_pi(digits)
         operation_count += 1
-    # print('Total time: ', total_time)
-
-    # # Start each thread
-    # for t in threads:
-    #     t.start()
-
-    # # Wait for all threads to finish
-    # for t in threads:
-    #     t.join()
 
 def time_calculate_pi(digits, thread_count, time_limit, sampling_interval=1):
-    global operation_count
+    global operation_count, keep_running
     total_time = 0
     start_time = pc()
     last_sample_time = start_time
@@ -81,8 +62,15 @@ def time_calculate_pi(digits, thread_count, time_limit, sampling_interval=1):
     print('\nTimestamp\tElapsed(s)\tThroughput(ops/s)\tTotal Ops')
     print('-' * 60)
 
+    # Create and start persistent worker threads
+    keep_running = True
+    threads = []
+    for i in range(thread_count):
+        t = Thread(target=worker_thread, args=(digits,))
+        t.start()
+        threads.append(t)
+
     while total_time < time_limit:
-        thread_calculate_pi(digits, thread_count)
         total_time = pc() - start_time
         time_between_samples = total_time - (last_sample_time - start_time)
 
@@ -102,6 +90,11 @@ def time_calculate_pi(digits, thread_count, time_limit, sampling_interval=1):
             # Update for next sample
             last_sample_time = pc()
             last_operation_count = operation_count
+
+    # Signal threads to stop and wait for them
+    keep_running = False
+    for t in threads:
+        t.join()
 
     print('-' * 60)
     print('Total time: ', total_time)
