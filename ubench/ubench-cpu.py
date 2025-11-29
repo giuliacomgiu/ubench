@@ -54,13 +54,13 @@ def time_calculate_pi(digits, thread_count, time_limit, sampling_interval=1):
     # Create log file
     log_filename = f'benchmark_log_{int(start_time)}.csv'
     with open(log_filename, 'w') as log_file:
-        log_file.write('timestamp,elapsed_time,throughput_instantaneous,operations_count\n')
+        log_file.write('timestamp,elapsed_time,throughput_instantaneous,operations_count,cpu_usage,ram_usage\n')
 
     print('Thread count: ', thread_count)
     print('Sampling interval: ', sampling_interval, 'seconds')
     print(f'Log file: {log_filename}')
-    print('\nTimestamp\tElapsed(s)\tThroughput(ops/s)\tTotal Ops')
-    print('-' * 60)
+    print('\nTimestamp\tElapsed(s)\tThroughput(ops/s)\tTotal Ops\tCPU(%)\tRAM(%)')
+    print('-' * 80)
 
     # Create and start persistent worker threads
     keep_running = True
@@ -80,12 +80,15 @@ def time_calculate_pi(digits, thread_count, time_limit, sampling_interval=1):
             ops_in_interval = operation_count - last_operation_count
             throughput_instantaneous = ops_in_interval / time_between_samples
 
+            # Get system usage
+            cpu_usage, ram_usage = get_system_usage()
+
             # Print to console
-            print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}')
+            print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
 
             # Save to log file
             with open(log_filename, 'a') as log_file:
-                log_file.write(f'{elapsed:.2f},{elapsed:.2f},{throughput_instantaneous:.2f},{operation_count}\n')
+                log_file.write(f'{elapsed:.2f},{elapsed:.2f},{throughput_instantaneous:.2f},{operation_count},{cpu_usage:.1f},{ram_usage:.1f}\n')
 
             # Update for next sample
             last_sample_time = pc()
@@ -96,7 +99,7 @@ def time_calculate_pi(digits, thread_count, time_limit, sampling_interval=1):
     for t in threads:
         t.join()
 
-    print('-' * 60)
+    print('-' * 80)
     print('Total time: ', total_time)
     return total_time
 
