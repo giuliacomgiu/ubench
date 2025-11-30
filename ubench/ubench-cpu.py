@@ -1,9 +1,6 @@
 # • CPU intensive load: Implements the π calculation. A given number of
 # threads calculate the π value with n decimal places. The number of
 # threads, n and the execution time are configurable;
-# • Memory intensive load: Implements read and write operations on a
-# pre-allocated vector of integers with the size of m MB. The runtime
-# and m are benchmark parameters;
 # • Disk intensive load: Implements random read and write operations in
 # the stable storage. For each thread, n files are created with the size of
 # m MB. The number of threads, size of the block, percentage of readings
