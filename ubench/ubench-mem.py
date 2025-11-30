@@ -18,21 +18,37 @@ import os
 from time import perf_counter as pc
 from time import sleep
 from threading import Thread
+import random
 
-operation_count = 0
+# operation_count = 0
 keep_running = False
+bytearray_list = []
 
-
-def memory_load(size_mb, duration):
+def memory_init(size_mb, chunk_size):
     """
-    Function to allocate memory and hold it for a given duration, then releases it.
+    Function to allocate memory
     """
-    # 32 to 126
-    memory = []
+    global bytearray_list
     for _ in range(size_mb):
-        memory.append(bytearray(1024 * 1024))  # Allocate 1 MB at a time
-    sleep(duration)
-    del memory
+        bytearray_chunk = bytearray(random.randbytes(chunk_size))  # Set all bytes in the array to a random value
+        bytearray_list.append(bytearray_chunk)  # Allocate 1 MB at a time
+
+def memory_load(chunk_size):
+    """
+    Function to stress memory access
+    """
+    global bytearray_list
+    for bytearray_chunk in bytearray_list:
+        idx = random.randint(0, chunk_size - 1)
+        idx2 = random.randint(0, chunk_size - 1)
+        temp = bytearray_chunk[idx]
+        bytearray_chunk[idx] = bytearray_chunk[idx2]
+        bytearray_chunk[idx2] = temp
+
+def memory_release():
+    global bytearray_list
+    bytearray_list.clear()
+    del bytearray_list
 
 def get_system_usage():
     """
@@ -42,14 +58,15 @@ def get_system_usage():
     ram_usage = psutil.virtual_memory().percent  # RAM usage in percentage
     return cpu_usage, ram_usage
 
-def time_use_mem(size_mb, time_limit, sampling_interval=1):
-    global operation_count, keep_running
+def time_use_mem(size_mb, chunk_size=1024 * 1024, time_limit=10, sampling_interval=1):
+    memory_init(size_mb, chunk_size)
+
+    operation_count = 0
+    last_operation_count = 0
     total_time = 0
     start_time = pc()
     last_sample_time = start_time
-    last_operation_count = 0
 
-    memory_load(size_mb, time_limit)
 
     # Create log file
     # log_filename = f'benchmark_log_{int(start_time)}.csv'
@@ -65,32 +82,38 @@ def time_use_mem(size_mb, time_limit, sampling_interval=1):
     while total_time < time_limit:
         total_time = pc() - start_time
         time_between_samples = total_time - (last_sample_time - start_time)
+        # print('time_between_samples: ', time_between_samples)
+
+        memory_load(chunk_size)
+        operation_count += 1
+        # sleep(sampling_interval)
 
         # # Check if sampling interval has passed
-        # if time_between_samples >= sampling_interval:
-        #     elapsed = total_time
-        #     ops_in_interval = operation_count - last_operation_count
-        #     throughput_instantaneous = ops_in_interval / time_between_samples
+        if time_between_samples >= sampling_interval:
+            elapsed = total_time
+            ops_in_interval = operation_count - last_operation_count
+            throughput_instantaneous = ops_in_interval / time_between_samples
 
-        #     # Get system usage
-        #     cpu_usage, ram_usage = get_system_usage()
+            # Get system usage
+            cpu_usage, ram_usage = get_system_usage()
 
-        #     # Print to console
-        #     print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
+            # Print to console
+            print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
 
-        #     # Save to log file
-        #     with open(log_filename, 'a') as log_file:
-        #         log_file.write(f'{elapsed:.2f},{elapsed:.2f},{throughput_instantaneous:.2f},{operation_count},{cpu_usage:.1f},{ram_usage:.1f}\n')
+            # Save to log file
+            # with open(log_filename, 'a') as log_file:
+            #     log_file.write(f'{elapsed:.2f},{elapsed:.2f},{throughput_instantaneous:.2f},{operation_count},{cpu_usage:.1f},{ram_usage:.1f}\n')
 
-        #     # Update for next sample
-        #     last_sample_time = pc()
-        #     last_operation_count = operation_count
+            # Update for next sample
+            last_sample_time = pc()
+            last_operation_count = operation_count
 
+    memory_release()
     print('-' * 80)
     print('Total time: ', total_time)
-    return total_time
+    return total_time, operation_count
 
-total_time = time_use_mem(1024, 5, sampling_interval=2)
+total_time, operation_count = time_use_mem(size_mb=1024, chunk_size=1024 * 1024, time_limit=10, sampling_interval=2)
 
 print('\n=== Summary ===')
 print('Operation count: ', operation_count)
