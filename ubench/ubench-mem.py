@@ -1,6 +1,3 @@
-# • CPU intensive load: Implements the π calculation. A given number of
-# threads calculate the π value with n decimal places. The number of
-# threads, n and the execution time are configurable;
 # • Memory intensive load: Implements read and write operations on a
 # pre-allocated vector of integers with the size of m MB. The runtime
 # and m are benchmark parameters;
@@ -12,38 +9,48 @@
 # operations measured throughout the execution. These data are made
 # available in time series, with an adjustable sampling interval.
 
-from mpmath import mp
 import psutil
-import os
 from time import perf_counter as pc
-from time import sleep
-from threading import Thread
 import random
 
 # operation_count = 0
 keep_running = False
 bytearray_list = []
+bytearray_list_length = 0
 
 def memory_init(size_mb, chunk_size):
     """
     Function to allocate memory
+    size_mb: total memory to allocate in MB
+    chunk_size: size of each chunk in bytes
     """
-    global bytearray_list
-    for _ in range(size_mb):
+    global bytearray_list, bytearray_list_length
+
+    # Calculate number of chunks needed
+    total_bytes = size_mb * 1024 * 1024  # Convert MB to bytes
+    num_chunks = int(total_bytes / chunk_size)
+
+    for _ in range(num_chunks):
         bytearray_chunk = bytearray(random.randbytes(chunk_size))  # Set all bytes in the array to a random value
-        bytearray_list.append(bytearray_chunk)  # Allocate 1 MB at a time
+        bytearray_list.append(bytearray_chunk)  # Allocate 1 chunk at a time
+
+    bytearray_list_length = len(bytearray_list)
+    print(f'Allocated {num_chunks} chunks of {chunk_size / (1024*1024):.2f} MB each = {size_mb} MB total')
 
 def memory_load(chunk_size):
     """
     Function to stress memory access
     """
-    global bytearray_list
-    for bytearray_chunk in bytearray_list:
-        idx = random.randint(0, chunk_size - 1)
-        idx2 = random.randint(0, chunk_size - 1)
-        temp = bytearray_chunk[idx]
-        bytearray_chunk[idx] = bytearray_chunk[idx2]
-        bytearray_chunk[idx2] = temp
+    global bytearray_list, bytearray_list_length
+
+    chunk_idx = random.randint(0, bytearray_list_length - 1)
+    idx = random.randint(0, chunk_size - 1)
+    idx2 = random.randint(0, chunk_size - 1)
+
+    bytearray_chunk = bytearray_list[chunk_idx]
+    temp = bytearray_chunk[idx]
+    bytearray_chunk[idx] = bytearray_chunk[idx2]
+    bytearray_chunk[idx2] = temp
 
 def memory_release():
     global bytearray_list
@@ -54,7 +61,7 @@ def get_system_usage():
     """
     Returns the current CPU and RAM usage percentages.
     """
-    cpu_usage = psutil.cpu_percent(interval=1)  # CPU usage in percentage
+    cpu_usage = psutil.cpu_percent(interval=0)  # Non-blocking CPU usage
     ram_usage = psutil.virtual_memory().percent  # RAM usage in percentage
     return cpu_usage, ram_usage
 
@@ -113,8 +120,13 @@ def time_use_mem(size_mb, chunk_size=1024 * 1024, time_limit=10, sampling_interv
     print('Total time: ', total_time)
     return total_time, operation_count
 
-total_time, operation_count = time_use_mem(size_mb=1024, chunk_size=1024 * 1024, time_limit=10, sampling_interval=2)
+total_time, operation_count = time_use_mem(size_mb=2048, chunk_size=10 * 1024 * 1024, time_limit=10, sampling_interval=2)
 
 print('\n=== Summary ===')
 print('Operation count: ', operation_count)
 print('Average throughput: ', operation_count / total_time, 'ops/s')
+
+cpu_usage, ram_usage = get_system_usage()
+print('\n=== System usage ===')
+print('CPU usage: ', cpu_usage, '%')
+print('RAM usage: ', ram_usage, '%')
