@@ -28,7 +28,7 @@ def get_system_usage():
     """
     Returns the current CPU and RAM usage percentages.
     """
-    cpu_usage = psutil.cpu_percent(interval=1)  # CPU usage in percentage
+    cpu_usage = psutil.cpu_percent(interval=0)  # CPU usage in percentage
     ram_usage = psutil.virtual_memory().percent  # RAM usage in percentage
     return cpu_usage, ram_usage
 
