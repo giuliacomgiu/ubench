@@ -178,10 +178,10 @@ def time_disk_io(thread_count, files_per_thread, file_size_mb, block_size,
             throughput_instantaneous = ops_in_interval / time_between_samples
 
             # Get system usage
-            cpu_usage, ram_usage = get_system_usage()
+            cpu_usage, ram_usage = -1, -1 # get_system_usage()
 
             # Print to console
-            print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
+            # print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
 
             # Save to log file
             with open(log_filename, 'a') as log_file:
@@ -209,10 +209,10 @@ total_time = time_disk_io(
     thread_count=4,
     files_per_thread=2,
     file_size_mb=100,
-    block_size=4096,  # 4KB blocks
+    block_size=100 * 1024,  # 100kB blocks
     read_percentage=50,
-    time_limit=10,
-    sampling_interval=2
+    time_limit=20,
+    sampling_interval=1
 )
 
 print('\n=== Summary ===')
