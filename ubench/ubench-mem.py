@@ -1,45 +1,37 @@
 # • Memory intensive load: Implements read and write operations on a
 # pre-allocated vector of integers with the size of m MB. The runtime
 # and m are benchmark parameters;
-# • Disk intensive load: Implements random read and write operations in
-# the stable storage. For each thread, n files are created with the size of
-# m MB. The number of threads, size of the block, percentage of readings
-# and writes, and runtime are configurable, along with n and m.
-# The implemented benchmarks generate log files with the throughput of
-# operations measured throughout the execution. These data are made
-# available in time series, with an adjustable sampling interval.
 
 import psutil
 from time import perf_counter as pc
 import random
 
-# operation_count = 0
 keep_running = False
 bytearray_list = []
 bytearray_list_length = 0
 
 def memory_init(size_mb, chunk_size):
     """
-    Function to allocate memory
-    size_mb: total memory to allocate in MB
-    chunk_size: size of each chunk in bytes
+    Função para alocar memória
+    size_mb: memória total a alocar em MB
+    chunk_size: tamanho de cada chunk em bytes
     """
     global bytearray_list, bytearray_list_length
 
-    # Calculate number of chunks needed
-    total_bytes = size_mb * 1024 * 1024  # Convert MB to bytes
+    # Calcula número de chunks necessários
+    total_bytes = size_mb * 1024 * 1024  # Converte MB para bytes
     num_chunks = int(total_bytes / chunk_size)
 
     for _ in range(num_chunks):
-        bytearray_chunk = bytearray(random.randbytes(chunk_size))  # Set all bytes in the array to a random value
-        bytearray_list.append(bytearray_chunk)  # Allocate 1 chunk at a time
+        bytearray_chunk = bytearray(random.randbytes(chunk_size))  # Define todos os bytes com valor aleatório
+        bytearray_list.append(bytearray_chunk)  # Aloca 1 chunk por vez
 
     bytearray_list_length = len(bytearray_list)
-    print(f'Allocated {num_chunks} chunks of {chunk_size / (1024*1024):.2f} MB each = {size_mb} MB total')
+    print(f'Alocados {num_chunks} chunks de {chunk_size / (1024*1024):.2f} MB cada = {size_mb} MB total')
 
 def memory_load(chunk_size):
     """
-    Function to stress memory access
+    Função para estressar acesso à memória
     """
     global bytearray_list, bytearray_list_length
 
@@ -54,20 +46,32 @@ def memory_load(chunk_size):
     bytearray_chunk[idx2:(idx2+sub_chunk_size)] = temp
 
 def memory_release():
+    """
+    Libera a memória alocada
+    """
     global bytearray_list
     bytearray_list.clear()
     del bytearray_list
 
 def get_system_usage():
     """
-    Returns the current CPU and RAM usage percentages.
+    Retorna as porcentagens atuais de uso de CPU e RAM.
     """
-    cpu_usage = psutil.cpu_percent(interval=0)  # Non-blocking CPU usage
-    ram_usage = psutil.virtual_memory().percent  # RAM usage in percentage
+    cpu_usage = psutil.cpu_percent(interval=0)  # Uso de CPU não-bloqueante
+    ram_usage = psutil.virtual_memory().percent  # Uso de RAM em porcentagem
     return cpu_usage, ram_usage
 
 def time_use_mem(size_mb, chunk_size=1024 * 1024, time_limit=10, sampling_interval=1, sys_usage=True):
-    # Create log file
+    """
+    Executa benchmark de memória com parâmetros especificados
+
+    Args:
+        size_mb: Tamanho total da memória a alocar em MB
+        chunk_size: Tamanho de cada chunk em bytes
+        time_limit: Tempo total de execução em segundos
+        sampling_interval: Intervalo entre amostras em segundos
+        sys_usage: Se deve coletar uso do sistema
+    """
     print('=== Memory Benchmark ===')
     print('Sampling interval: ', sampling_interval, 'seconds')
     print('Time limit: ', time_limit, 'seconds')
@@ -82,6 +86,7 @@ def time_use_mem(size_mb, chunk_size=1024 * 1024, time_limit=10, sampling_interv
     start_time = pc()
     last_sample_time = start_time
 
+    # Cria arquivo de log
     log_filename = f'benchmark_mem_log_{int(start_time)}.csv'
     with open(log_filename, 'w') as log_file:
         log_file.write('timestamp,elapsed_time,throughput_instantaneous,operations_count,cpu_usage,ram_usage\n')
@@ -89,33 +94,31 @@ def time_use_mem(size_mb, chunk_size=1024 * 1024, time_limit=10, sampling_interv
 
     print('\nTimestamp\tElapsed(s)\tThroughput(ops/s)\tTotal Ops\tCPU(%)\tRAM(%)')
     print('-' * 80)
-    # Create and start persistent worker threads
+
     while total_time < time_limit:
         total_time = pc() - start_time
         time_between_samples = total_time - (last_sample_time - start_time)
-        # print('time_between_samples: ', time_between_samples)
 
         memory_load(chunk_size)
         operation_count += 1
-        # sleep(sampling_interval)
 
-        # # Check if sampling interval has passed
+        # Verifica se o intervalo de amostragem passou
         if time_between_samples >= sampling_interval:
             elapsed = total_time
             ops_in_interval = operation_count - last_operation_count
             throughput_instantaneous = ops_in_interval / time_between_samples
 
-            # Get system usage
-            cpu_usage, ram_usage = get_system_usage() if sys_usage else -1, -1
+            # Obtém uso do sistema
+            cpu_usage, ram_usage = get_system_usage() if sys_usage else (-1, -1)
 
-            # Print to console
-            # print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
+            # Imprime no console
+            print(f'{pc():.2f}\t\t{elapsed:.2f}\t\t{throughput_instantaneous:.2f}\t\t{operation_count}\t\t{cpu_usage:.1f}\t{ram_usage:.1f}')
 
-            # Save to log file
+            # Salva no arquivo de log
             with open(log_filename, 'a') as log_file:
                 log_file.write(f'{elapsed:.2f},{elapsed:.2f},{throughput_instantaneous:.2f},{operation_count},{cpu_usage:.1f},{ram_usage:.1f}\n')
 
-            # Update for next sample
+            # Atualiza para próxima amostra
             last_sample_time = pc()
             last_operation_count = operation_count
 
@@ -124,13 +127,26 @@ def time_use_mem(size_mb, chunk_size=1024 * 1024, time_limit=10, sampling_interv
     print('Total time: ', total_time)
     return total_time, operation_count
 
-total_time, operation_count = time_use_mem(size_mb=2048, chunk_size=250 * 1024 * 1024, time_limit=20, sampling_interval=1, sys_usage=False)
+def main():
+    """
+    Função principal que executa o benchmark de memória
+    """
+    total_time, operation_count = time_use_mem(
+        size_mb=6144,
+        chunk_size=250 * 1024 * 1024,
+        time_limit=20,
+        sampling_interval=1,
+        sys_usage=False
+    )
 
-print('\n=== Summary ===')
-print('Operation count: ', operation_count)
-print('Average throughput: ', operation_count / total_time, 'ops/s')
+    print('\n=== Resumo ===')
+    print(f'Contagem de operações: {operation_count}')
+    print(f'Throughput médio: {operation_count / total_time:.2f} ops/s')
 
-cpu_usage, ram_usage = get_system_usage()
-print('\n=== System usage ===')
-print('CPU usage: ', cpu_usage, '%')
-print('RAM usage: ', ram_usage, '%')
+    cpu_usage, ram_usage = get_system_usage()
+    print('\n=== Uso do Sistema ===')
+    print(f'Uso de CPU: {cpu_usage}%')
+    print(f'Uso de RAM: {ram_usage}%')
+
+if __name__ == '__main__':
+    main()
